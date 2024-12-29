@@ -4,17 +4,22 @@ export async function main(denops: Denops): Promise<void> {
   denops.dispatcher = {
     async send(): Promise<void> {
       const currentLine = await denops.call("line", ".");
-      const lineText = await denops.call("getline", ".");
+      const startLine = await denops.call("line", "'<");
+      const endLine = await denops.call("line", "'>");
+      const selectedLines: string[] = await denops.call("getline", startLine, endLine);
+      const aboveLine = await denops.call("getline", startLine - 1);
+      const baseIndent = aboveLine.match(/^\s*/)?.[0] || "";
+      const deeperIndent = baseIndent + "  ";
 
       const tryCatchBlock = [
-        "try {",
-        `  ${lineText}`,
-        "} catch (error) {",
-        "  console.error(error);",
-        "}"
+        `${deeperIndent}try {`,
+        ...selectedLines.map(line => `${baseIndent}  ${line}`),
+        `${deeperIndent}} catch (error) {`,
+        `${deeperIndent}  console.error(error);`,
+        `${deeperIndent}}`
       ];
 
-      await denops.call("deletebufline", "%", currentLine);
+      await denops.call("deletebufline", "%", currentLine, endLine);
       for (const [index, line] of tryCatchBlock.entries()) {
         await denops.call("append", currentLine - 1 + index, line);
       }
